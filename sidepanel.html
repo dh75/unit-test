@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>E-GENE Form Analyzer</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif;
+  background: #f5f5f5; color: #222; font-size: 12px; }
+
+.panel { padding: 12px; }
+h1 { font-size: 14px; font-weight: 700; margin-bottom: 2px; color: #1a3a7a; }
+.version { font-size: 10px; color: #aaa; margin-bottom: 10px; }
+
+/* 캡처 버튼 영역 */
+.capture-box { background: #fff; border: 1px solid #ddd; border-radius: 8px;
+  padding: 10px 12px; margin-bottom: 10px; }
+.capture-box h2 { font-size: 11px; font-weight: 600; color: #444; margin-bottom: 8px; }
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+button { padding: 6px 12px; border: 1px solid #ccc; border-radius: 5px;
+  background: #fff; cursor: pointer; font-size: 11px; transition: background .12s; white-space: nowrap; }
+button:hover:not(:disabled) { background: #f0f0f0; }
+button.primary { background: #4a7cdc; color: #fff; border-color: #4a7cdc; }
+button.primary:hover:not(:disabled) { background: #3a6cc8; }
+button.success { background: #1a7a3a; color: #fff; border-color: #1a7a3a; }
+button.success:hover:not(:disabled) { background: #155f2d; }
+button:disabled { opacity: .4; cursor: default; }
+.capture-hint { font-size: 10px; color: #888; line-height: 1.5; }
+
+/* 소스 목록 */
+.src-list { margin-bottom: 8px; }
+.src-item { background: #fff; border: 1px solid #ddd; border-radius: 6px;
+  margin-bottom: 6px; overflow: hidden; }
+.src-item-header { display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; background: #f8f8f8; border-bottom: 1px solid #eee; }
+.src-num { font-size: 10px; font-weight: 700; color: #fff; background: #4a7cdc;
+  border-radius: 99px; padding: 1px 6px; min-width: 22px; text-align: center; }
+.src-memo { flex: 1; font-size: 11px; color: #444; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.src-status { font-size: 10px; padding: 1px 6px; border-radius: 99px; white-space: nowrap; }
+.src-status.ok    { background: #e6f9ec; color: #1a7a3a; }
+.src-status.empty { background: #f0f0f0; color: #aaa; }
+.btn-src-del { font-size: 11px; color: #c00; cursor: pointer; border: none;
+  background: none; padding: 1px 4px; margin-left: auto; flex-shrink: 0; }
+
+/* 분석 버튼 */
+.analyze-row { display: flex; gap: 6px; margin-bottom: 10px; align-items: center; }
+.analyze-row button { flex: 1; padding: 8px; font-size: 12px; }
+#statusMsg { font-size: 10px; color: #888; }
+
+/* 탭 */
+.tab-bar { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 10px; }
+.tab { padding: 6px 12px; font-size: 11px; cursor: pointer; color: #666;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab.active { color: #4a7cdc; border-bottom-color: #4a7cdc; font-weight: 600; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* TC 테이블 */
+.tc-wrap { overflow-x: auto; }
+.tc-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.tc-table th { background: #f0f4ff; color: #333; font-weight: 600;
+  padding: 5px 7px; border: 1px solid #d0d8f0; text-align: left; white-space: nowrap; }
+.tc-table td { padding: 5px 7px; border: 1px solid #e4e8f0; vertical-align: top; }
+.tc-table tr:hover td { background: #f8faff; }
+.td-id    { color: #888; white-space: nowrap; font-size: 10px; width: 50px; }
+.td-title { font-weight: 600; color: #1a3a7a; min-width: 140px; }
+.td-step  { color: #333; line-height: 1.6; }
+.td-tags  { white-space: nowrap; width: 80px; }
+.step-sub  { padding-left: 14px; color: #555; }
+.step-sub2 { padding-left: 24px; color: #777; }
+.step-icon-sub { color: #bbb; margin-right: 3px; }
+.tc-group-header { background: #f5f5f5; font-size: 10px; font-weight: 700; color: #666;
+  text-transform: uppercase; letter-spacing: .04em; padding: 4px 7px;
+  border: 1px solid #e0e0e0; border-top: 2px solid #ccc; }
+.badge { display: inline-block; padding: 1px 5px; border-radius: 99px;
+  font-size: 10px; font-weight: 500; background: #e8f0ff; color: #1a5ab8; margin-bottom: 2px; }
+
+/* 경고 */
+.warn-box { background: #fff3e0; border-left: 3px solid #e07d00;
+  border-radius: 4px; padding: 6px 10px; font-size: 11px; color: #7a4a00; margin-bottom: 6px; }
+
+/* JSON */
+pre { background: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', monospace;
+  font-size: 10px; padding: 10px; border-radius: 6px; overflow: auto;
+  max-height: calc(100vh - 200px); white-space: pre-wrap; word-break: break-all; }
+
+/* 디버그 */
+#debugLog { background: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', monospace;
+  font-size: 10px; padding: 8px; border-radius: 6px; max-height: 120px;
+  overflow-y: auto; margin-bottom: 8px; display: none; white-space: pre-wrap; }
+#debugLog.show { display: block; }
+.log-ok   { color: #6fbf6f; }
+.log-err  { color: #f48771; }
+.log-info { color: #9cdcfe; }
+
+.no-data { font-size: 11px; color: #aaa; padding: 8px 0; }
+#output { display: none; }
+
+/* 스피너 */
+.spinner { display: inline-block; width: 12px; height: 12px;
+  border: 2px solid #ccc; border-top-color: #4a7cdc;
+  border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 4px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="panel">
+  <h1>E-GENE Form Analyzer</h1>
+  <div class="version" id="versionLabel"></div>
+
+  <!-- 자동 캡처 -->
+  <div class="capture-box">
+    <h2>📡 현재 탭에서 캡처</h2>
+    <div class="btn-row">
+      <button class="primary" id="btnCaptureCurrent">현재 상태 캡처</button>
+    </div>
+    <div class="capture-hint">
+      E-GENE 폼 페이지에서 라디오 옵션을 선택한 후 버튼을 눌러 캡처하세요.<br>
+      옵션별로 반복해서 캡처한 뒤 <b>분석 실행</b>하면 됩니다.
+    </div>
+  </div>
+
+  <!-- 수집된 소스 목록 -->
+  <div class="src-list" id="srcList"></div>
+
+  <!-- 분석 실행 -->
+  <div class="analyze-row">
+    <button class="success" id="btnAnalyze">▶ 분석 실행</button>
+    <button id="btnReset">↺ 초기화</button>
+    <button id="btnDebug" style="font-size:10px;padding:4px 8px">디버그</button>
+  </div>
+  <div id="statusMsg"></div>
+
+  <div id="debugLog"></div>
+
+  <!-- 결과 -->
+  <div id="output">
+    <div id="screenNameLabel" style="font-size:11px;font-weight:700;color:#1a3a7a;margin-bottom:6px;display:none"></div>
+    <div id="warnings"></div>
+    <div class="tab-bar">
+      <div class="tab active" id="tabTestcases">테스트케이스</div>
+      <div class="tab" id="tabJson">JSON</div>
+    </div>
+    <div class="btn-row" style="margin-bottom:8px">
+      <button id="btnCopyJSON">📋 JSON 복사</button>
+      <button id="btnCSV">📥 CSV</button>
+    </div>
+    <div id="tab-testcases" class="tab-panel active">
+      <div class="tc-wrap" id="tcWrap"></div>
+    </div>
+    <div id="tab-json" class="tab-panel">
+      <pre id="jsonPre"></pre>
+    </div>
+  </div>
+</div>
+
+<script src="analyzer.js"></script>
+<script src="sidepanel.js"></script>
+</body>
+</html>
