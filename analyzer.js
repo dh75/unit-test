@@ -446,42 +446,43 @@ function genTCs(allFields, allRelations, allButtons = []) {
   function emitRelTC(rel) {
     if (emittedRels.has(rel.label)) return;
     emittedRels.add(rel.label);
+    const g = rel.label; // 릴레이션도 이름을 그룹으로
     const actTxt = rel.isDynamic
       ? `해당 분류 선택 후 [${rel.label}] 섹션 활성화 확인`
       : `[${rel.label}] 섹션 표시 확인`;
     if (!rel.columns.length) {
       tcs.push({
-        id: id++, group: `릴레이션 — ${rel.label}`, title: '기본 동작 검증',
+        id: id++, group: g, title: '기본 동작 검증',
         steps: [s(actTxt), s('"추가" 클릭 → 새 행 생성'), s('필수 컬럼 미입력 저장 → 오류 확인', 1), s('행 체크 후 "삭제" → 행 제거'), s('저장 후 데이터 정합성 확인')],
         tags: ['릴레이션', '기능검증']
       }); return;
     }
     tcs.push({
-      id: id++, group: `릴레이션 — ${rel.label}`, title: '정상 입력 (Happy Path)',
+      id: id++, group: g, title: '정상 입력 (Happy Path)',
       steps: [s(actTxt), s('"추가" 버튼 클릭 → 새 행 생성'), ...rel.columns.map(c => colStep(c, 1)), s('저장 후 행 데이터 정합성 확인')],
       tags: ['릴레이션', 'HappyPath']
     });
     const reqCols = rel.columns.filter(c => c.required);
     if (reqCols.length)
       tcs.push({
-        id: id++, group: `릴레이션 — ${rel.label}`, title: '필수 컬럼 미입력 검증',
+        id: id++, group: g, title: '필수 컬럼 미입력 검증',
         steps: [s(actTxt), s('"추가" 클릭 → 새 행 생성'), ...reqCols.map(c => s(`[${c.label}] 미입력 상태 유지`, 1)), s('저장 → 필수 항목 오류 메시지 확인')],
         tags: ['릴레이션', '필수검증', 'Negative']
       });
     if (rel.validation?.isRelationValidated)
       tcs.push({
-        id: id++, group: `릴레이션 — ${rel.label}`, title: '릴레이션 정합성 검증',
+        id: id++, group: g, title: '릴레이션 정합성 검증',
         steps: [s(actTxt), s('"추가" 클릭 → 새 행 생성'), s('필수 컬럼 입력 후 저장'), s('저장된 행 데이터 서버 정합성 확인', 1), s('저장 실패 시 오류 메시지 확인', 1)],
         tags: ['릴레이션', '정합성검증', 'Negative']
       });
     tcs.push({
-      id: id++, group: `릴레이션 — ${rel.label}`, title: '행 추가/삭제',
+      id: id++, group: g, title: '행 추가/삭제',
       steps: [s(actTxt), s('"추가" 클릭 → 새 행 생성 확인'), s('행 체크박스 선택 후 "삭제" 클릭 → 행 제거 확인', 1), s('저장 후 삭제 반영 확인')],
       tags: ['릴레이션', '기능검증']
     });
     rel.columns.filter(c => c.type === 'select' && c.options.length > 1).forEach(sc => {
       tcs.push({
-        id: id++, group: `릴레이션 — ${rel.label}`, title: `[${sc.label}] 전체 옵션 검증`,
+        id: id++, group: g, title: `[${sc.label}] 옵션 검증`,
         steps: sc.options.map(o => s(`"${o.text}" 선택 후 저장 → 정상 저장 확인`)),
         tags: ['릴레이션', '옵션검증']
       });
@@ -493,6 +494,8 @@ function genTCs(allFields, allRelations, allButtons = []) {
 
   allFields.forEach(f => {
     if (f.isSys || f.type === 'hidden' || f.type === 'divider') return;
+
+    const g = f.label; // 필드명을 그룹으로 사용
 
     // 릴레이션 필드 → 릴레이션 TC
     if (f.type === 'relation') {
@@ -508,15 +511,15 @@ function genTCs(allFields, allRelations, allButtons = []) {
       else if (f.type === 'employee') stepText = `[${f.label}] 로그인 사용자 정보가 자동으로 표시되는지 확인`;
       else stepText = `[${f.label}] 시스템 값이 자동 표시되는지 확인`;
       tcs.push({
-        id: id++, group: '자동 표시 필드',
-        title: `[${f.label}] 자동 표시 확인`,
+        id: id++, group: g,
+        title: '자동 표시 확인',
         steps: [s(stepText)],
         tags: ['자동표시', 'UI확인']
       });
       return;
     }
 
-    // 라디오 필드 → 옵션별 동적 동작 TC
+    // 라디오 필드 → 옵션별 동적 동작 TC (필드명 그룹으로 묶음)
     if (f.type === 'radio' && f.options.length) {
       f.options.forEach(opt => {
         const matchKey = opt.catCd || opt.value;
@@ -538,8 +541,8 @@ function genTCs(allFields, allRelations, allButtons = []) {
         }
         steps.push(s('나머지 필수 필드 입력 후 저장'));
         tcs.push({
-          id: id++, group: '동적 필드 — 라디오',
-          title: `[${f.label}] "${opt.text}" 선택 시 동작`,
+          id: id++, group: g,
+          title: `"${opt.text}" 선택 시 동작`,
           steps, tags: ['동적필드', '라디오', '기능검증']
         });
       });
@@ -549,8 +552,8 @@ function genTCs(allFields, allRelations, allButtons = []) {
     // 동적 필드 (showConds 없는 기타)
     if (f.isDynamic && !(f.showConds && f.showConds.length)) {
       tcs.push({
-        id: id++, group: '동적 필드 — 기타',
-        title: `[${f.label}] 표시/숨김 검증`,
+        id: id++, group: g,
+        title: '표시/숨김 검증',
         steps: [s(`[${f.label}] 활성화 조건 충족 시 표시 / 비활성화 시 숨김 확인`)],
         tags: ['동적필드', '기능검증']
       });
@@ -562,64 +565,92 @@ function genTCs(allFields, allRelations, allButtons = []) {
       const dt = f.defaultText || '';
       const cm = f.comment || '';
       const dtShort = dt.length > 60 ? dt.slice(0, 60) + '…' : dt;
+      // 기본 동작 TC
       tcs.push({
-        id: id++, group: '개별 필드', title: `에디터 [${f.label}] 입력 검증`,
+        id: id++, group: g, title: '입력 검증',
         steps: [
           ...(dt ? [s(`화면 진입 시 기본 템플릿 텍스트 표시 확인: "${dtShort}"`)] : []),
           s('에디터 클릭 후 텍스트 입력'),
           s('굵게/기울임/색상 서식 적용 확인', 1),
-          s(f.required ? '미입력 저장 → 오류 확인' : '빈 저장 정상 처리 확인'),
-          ...valSteps(f),
           s('저장 후 내용 보존 확인'),
-          ...(cm ? [s(`필드 안내 문구 표시 확인: "${cm}"`)] : [])
+          ...(cm ? [s(`안내 문구 표시 확인: "${cm}"`)] : [])
         ],
         tags: ['에디터', '기능검증']
       });
+      // 필수 검증 TC
+      if (f.required)
+        tcs.push({
+          id: id++, group: g, title: '필수 입력 검증',
+          steps: [
+            s('에디터 내용 비운 상태로 저장'),
+            ...(f.validation?.requireMsgs.length
+              ? f.validation.requireMsgs.map(msg => s(`"${msg}" 오류 메시지 확인`, 1))
+              : [s('필수 오류 메시지 확인', 1)])
+          ],
+          tags: ['필수검증', 'Negative']
+        });
       return;
     }
 
     // 날짜 필드
     if (f.type === 'date') {
+      // 기본 동작 TC
       tcs.push({
-        id: id++, group: '개별 필드', title: `날짜 [${f.label}] 유효성`,
+        id: id++, group: g, title: '날짜 선택 동작 검증',
         steps: [
           s('달력 아이콘 클릭 → 팝업 표시 확인'),
-          s('정상 날짜 선택 → 입력란 반영 확인'),
-          ...(f.validation?.validateMsgs.length
-            ? f.validation.validateMsgs.map(msg => s(`잘못된 형식 입력 → "${msg}" 확인`, 1))
-            : [s('잘못된 형식 직접 입력(예: 20251332) → 오류 처리 확인', 1)]),
-          s(f.required ? '미입력 후 저장 → 오류 확인' : '빈 상태 저장 정상 처리 확인'),
-          ...valSteps(f).filter(vs => !f.validation?.validateMsgs.some(m => vs.text.includes(m)))
+          s('정상 날짜 선택 → 입력란 반영 확인')
         ],
-        tags: ['날짜', '유효성']
+        tags: ['날짜', '기능검증']
+      });
+      // 유효성 TC
+      tcs.push({
+        id: id++, group: g, title: '날짜 유효성 검증',
+        steps: [
+          ...(f.validation?.validateMsgs.length
+            ? f.validation.validateMsgs.map(msg => s(`잘못된 형식 입력 → "${msg}" 확인`))
+            : [s('잘못된 형식 직접 입력(예: 20251332) → 오류 처리 확인')]),
+          s(f.required ? '미입력 후 저장 → 오류 확인' : '빈 상태 저장 정상 처리 확인')
+        ],
+        tags: ['날짜', '유효성', 'Negative']
       });
       return;
     }
 
     // 직원검색 필드
     if (f.type === 'employee') {
+      // 기본 동작 TC
       tcs.push({
-        id: id++, group: '개별 필드', title: `직원검색 [${f.label}] 동작 검증`,
+        id: id++, group: g, title: '직원 검색 동작 검증',
         steps: [
           s('검색 아이콘 클릭 → 팝업 표시 확인'),
           s('이름/사번으로 검색 후 선택 → 필드 반영 확인', 1),
-          s('선택 후 X(초기화) 클릭 → 값 제거 확인', 1),
-          ...valSteps(f),
-          s(f.required ? '미선택 저장 → 오류 확인' : '미선택 저장 정상 처리 확인')
+          s('선택 후 X(초기화) 클릭 → 값 제거 확인', 1)
         ],
         tags: ['직원검색', '기능검증']
       });
+      // 필수 검증 TC
+      if (f.required)
+        tcs.push({
+          id: id++, group: g, title: '필수 입력 검증',
+          steps: [
+            s('미선택 상태로 저장'),
+            ...(f.validation?.requireMsgs.length
+              ? f.validation.requireMsgs.map(msg => s(`"${msg}" 오류 메시지 확인`, 1))
+              : [s('필수 오류 메시지 확인', 1)])
+          ],
+          tags: ['필수검증', 'Negative']
+        });
       return;
     }
 
     // 체크박스 필드
     if (f.type === 'checkbox') {
       tcs.push({
-        id: id++, group: '개별 필드', title: `체크박스 [${f.label}] 동작 검증`,
+        id: id++, group: g, title: '체크박스 동작 검증',
         steps: [
-          s(`[${f.label}] 체크 → 값 1 반영 확인`),
-          s(`[${f.label}] 해제 → 값 0 반영 확인`),
-          ...valSteps(f),
+          s(`체크 → 값 반영 확인`),
+          s(`해제 → 값 초기화 확인`),
           s('체크 상태로 저장 후 재조회 → 값 유지 확인', 1)
         ],
         tags: ['체크박스', '기능검증']
@@ -627,31 +658,73 @@ function genTCs(allFields, allRelations, allButtons = []) {
       return;
     }
 
-    // 유효성 검증 있는 일반 필드
+    // select/드롭다운 필드
+    if (f.type === 'select') {
+      // 기본 동작 TC
+      tcs.push({
+        id: id++, group: g, title: '드롭다운 선택 검증',
+        steps: [
+          s('드롭다운 클릭 → 옵션 목록 표시 확인'),
+          ...(f.options && f.options.length
+            ? f.options.map(o => s(`"${o.text}" 선택 후 저장 → 정상 저장 확인`, 1))
+            : [s('옵션 선택 후 저장 확인', 1)])
+        ],
+        tags: ['드롭다운', '기능검증']
+      });
+      // 필수 검증 TC
+      if (f.required)
+        tcs.push({
+          id: id++, group: g, title: '필수 입력 검증',
+          steps: [
+            s('미선택 상태로 저장'),
+            ...(f.validation?.requireMsgs.length
+              ? f.validation.requireMsgs.map(msg => s(`"${msg}" 오류 메시지 확인`, 1))
+              : [s('필수 오류 메시지 확인', 1)])
+          ],
+          tags: ['필수검증', 'Negative']
+        });
+      return;
+    }
+
+    // 유효성 검증 있는 일반 텍스트 필드
     if (f.validation && f.validation.validateMsgs.length > 0) {
       const cm = f.comment || '';
+      // 기본 입력 TC
       tcs.push({
-        id: id++, group: '개별 필드', title: `[${f.label}] 입력 유효성 검증`,
+        id: id++, group: g, title: '정상 입력 확인',
         steps: [
-          s(`[${f.label}] 정상 값 입력 후 저장 → 정상 처리 확인`),
-          ...f.validation.validateMsgs.map(msg => s(`유효하지 않은 값 입력 → "${msg}" 확인`, 1)),
+          s(`정상 값 입력 후 저장 → 정상 처리 확인`),
+          ...(cm ? [s(`안내 문구 표시 확인: "${cm}"`)] : [])
+        ],
+        tags: ['기능검증']
+      });
+      // 유효성 TC
+      tcs.push({
+        id: id++, group: g, title: '유효성 검증',
+        steps: [
+          ...f.validation.validateMsgs.map(msg => s(`유효하지 않은 값 입력 → "${msg}" 확인`)),
           ...(f.required && f.validation.requireMsgs.length
-            ? f.validation.requireMsgs.map(msg => s(`미입력 저장 → "${msg}" 확인`, 1))
-            : []),
-          ...(cm ? [s(`필드 안내 문구 표시 확인: "${cm}"`)] : [])
+            ? f.validation.requireMsgs.map(msg => s(`미입력 저장 → "${msg}" 확인`))
+            : f.required ? [s('미입력 저장 → 필수 오류 메시지 확인')] : [])
         ],
         tags: ['유효성검증', 'Negative']
       });
       return;
     }
 
-    // 필수 필드 (단독 미입력 검증)
+    // 필수 텍스트 필드
     if (f.required) {
+      // 정상 입력 TC
       tcs.push({
-        id: id++, group: '필수 검증',
-        title: `[${f.label}] 필수 입력 검증`,
+        id: id++, group: g, title: '정상 입력 확인',
+        steps: [s(`값 입력 후 저장 → 정상 처리 확인`)],
+        tags: ['기능검증']
+      });
+      // 필수 검증 TC
+      tcs.push({
+        id: id++, group: g, title: '필수 입력 검증',
         steps: [
-          s(`[${f.label}] 미입력 후 저장`),
+          s(`미입력 후 저장`),
           ...(f.validation?.requireMsgs.length
             ? f.validation.requireMsgs.map(msg => s(`"${msg}" 오류 메시지 확인`, 1))
             : [s('필수 오류 메시지 확인', 1)])
@@ -664,8 +737,8 @@ function genTCs(allFields, allRelations, allButtons = []) {
     // 안내 문구만 있는 필드
     if (f.comment && f.comment.length > 0 && f.type !== 'editor') {
       tcs.push({
-        id: id++, group: '개별 필드', title: `[${f.label}] 안내 문구 표시 확인`,
-        steps: [s(`필드 [${f.label}] 하단 안내 문구 표시 확인: "${f.comment}"`)],
+        id: id++, group: g, title: '안내 문구 표시 확인',
+        steps: [s(`안내 문구 표시 확인: "${f.comment}"`)],
         tags: ['UI확인']
       });
       return;
