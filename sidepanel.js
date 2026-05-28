@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnReset').addEventListener('click', doReset);
   document.getElementById('btnDebug').addEventListener('click', toggleDebug);
   document.getElementById('btnCopyJSON').addEventListener('click', copyJSON);
+  document.getElementById('btnSaveJSON').addEventListener('click', saveJSON);
   document.getElementById('btnCSV').addEventListener('click', exportCSV);
   document.getElementById('tabTestcases').addEventListener('click', function() { swTab('testcases', this); });
   document.getElementById('tabJson').addEventListener('click', function() { swTab('json', this); });
@@ -279,6 +280,15 @@ function copyJSON() {
   navigator.clipboard.writeText(data)
     .then(() => setStatus('✅ JSON 복사 완료'))
     .catch(() => setStatus('❌ 복사 실패'));
+}
+
+function saveJSON() {
+  const data = JSON.stringify(buildOutput(), null, 2);
+  const filename = (_screenName ? _screenName.replace(/[\\/:*?"<>|]/g, '_') : 'egene_tc') + '.json';
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(data);
+  a.download = filename;
+  a.click();
 }
 
 function exportCSV() {
