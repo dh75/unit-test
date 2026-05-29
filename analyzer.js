@@ -150,6 +150,12 @@ function extractFormFields(doc, showCondMap, allDynamicNames) {
       });
     } else if (wrap.querySelector('.uiitem .text-group input[type="hidden"]')) {
       type = 'employee';
+    } else if (
+      wrap.querySelector('.text-group input[type="hidden"]') &&
+      wrap.querySelector('input[type="text"][readonly]') &&
+      wrap.querySelector('.atom-group-prepend')
+    ) {
+      type = 'search';
     } else if (ckDiv) {
       // CKEditor만 editor 타입 — textarea는 일반 text
       type = 'editor';
@@ -277,12 +283,21 @@ function extractRelationColumns(doc, fields) {
       const dataRow = container.querySelector('.data-area .data, .rel-bottom .data');
       if (dataRow) {
         dataRow.querySelectorAll('.rel-row-sub-data').forEach((td, i) => {
+          // display:none 숨김 컬럼 제외 (내부 처리용 필드)
+          if ((td.getAttribute('style') || '').replace(/\s/g, '').includes('display:none')) return;
+
           const fid2  = td.getAttribute('fid') || '';
           const alias = td.getAttribute('alias') || fid2 || '';
           let colType = 'text', colOpts = [];
           const sel = td.querySelector('select');
           const emp = td.querySelector('.atom-entity-employee') || td.querySelector('.uiitem .text-group input[type="hidden"]');
           const dtEl = td.querySelector('input[name$="_dt"], input[id$="_dt"]');
+          const searchPopup = !!(
+            td.querySelector('input[type="hidden"]') &&
+            td.querySelector('input[type="text"][readonly]') &&
+            td.querySelector('.atom-group-prepend')
+          );
+          let hasCalendar = false;
           if (sel) {
             colType = 'select';
             sel.querySelectorAll('option').forEach(o => { if (o.value) colOpts.push({ value: o.value, text: o.textContent.trim() }); });
@@ -290,12 +305,15 @@ function extractRelationColumns(doc, fields) {
             colType = 'employee';
           } else if (dtEl) {
             colType = 'date';
+            hasCalendar = !!(td.querySelector('.date-calendar-icon, .fa-calendar'));
+          } else if (searchPopup) {
+            colType = 'search';
           }
           const hdr = headerCols[i];
           cols.push({
             label: hdr ? hdr.label : (alias || fid2), fid: fid2, alias,
             required: hdr ? hdr.required : td.classList.contains('field_rq'),
-            type: colType, options: colOpts
+            type: colType, options: colOpts, hasCalendar
           });
         });
       }
@@ -422,7 +440,12 @@ function genTCs(allFields, allRelations, allButtons = []) {
   function colStep(c, level = 1) {
     if (c.type === 'select' && c.options.length) return s(`[${c.label}] 드롭다운에서 "${c.options[0].text}" 선택`, level);
     if (c.type === 'employee') return s(`[${c.label}] 직원 검색 팝업에서 선택`, level);
-    if (c.type === 'date')     return s(`[${c.label}] 날짜 선택`, level);
+    if (c.type === 'search')   return s(`[${c.label}] 검색 팝업에서 선택`, level);
+    if (c.type === 'date') {
+      return c.hasCalendar
+        ? s(`[${c.label}] 달력 아이콘 클릭 또는 직접 입력(예: 2025-01-01) → 날짜 반영 확인`, level)
+        : s(`[${c.label}] 날짜 입력`, level);
+    }
     return s(`[${c.label}] 값 입력`, level);
   }
   function valSteps(f, level = 1) {
@@ -614,6 +637,30 @@ function genTCs(allFields, allRelations, allButtons = []) {
         ],
         tags: ['validation']
       });
+      return;
+    }
+
+    // 일반 검색 필드 (직원 외 팝업 검색)
+    if (f.type === 'search') {
+      tcs.push({
+        id: id++, group: g, title: '검색 동작 검증',
+        steps: [
+          s('검색 아이콘 클릭 → 팝업 표시 확인'),
+          s('검색 후 항목 선택 → 필드 반영 확인', 1)
+        ],
+        tags: ['function']
+      });
+      if (f.required)
+        tcs.push({
+          id: id++, group: g, title: '필수 입력 검증',
+          steps: [
+            s('미선택 상태로 저장'),
+            ...(f.validation?.requireMsgs.length
+              ? f.validation.requireMsgs.map(msg => s(`"${msg}" 오류 메시지 확인`, 1))
+              : [s('필수 오류 메시지 확인', 1)])
+          ],
+          tags: ['validation']
+        });
       return;
     }
 

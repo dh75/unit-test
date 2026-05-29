@@ -36,7 +36,8 @@ button:disabled { opacity: .4; cursor: default; }
 .src-num { font-size: 10px; font-weight: 700; color: #fff; background: #4a7cdc;
   border-radius: 99px; padding: 1px 6px; min-width: 22px; text-align: center; }
 .src-memo { flex: 1; font-size: 11px; color: #444; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; }
+  text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.src-memo:hover { color: #4a7cdc; text-decoration: underline; }
 .src-status { font-size: 10px; padding: 1px 6px; border-radius: 99px; white-space: nowrap; }
 .src-status.ok    { background: #e6f9ec; color: #1a7a3a; }
 .src-status.empty { background: #f0f0f0; color: #aaa; }
@@ -95,6 +96,10 @@ pre { background: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', monospace;
 
 .no-data { font-size: 11px; color: #aaa; padding: 8px 0; }
 #output { display: none; }
+
+/* 소스 선택 상태 */
+.src-item.src-selected { border-color: #4a7cdc; }
+.src-item.src-selected .src-item-header { background: #eef2ff; }
 
 /* 스피너 */
 .spinner { display: inline-block; width: 12px; height: 12px;

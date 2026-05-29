@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnCSV').addEventListener('click', exportCSV);
   document.getElementById('tabTestcases').addEventListener('click', function() { swTab('testcases', this); });
   document.getElementById('tabJson').addEventListener('click', function() { swTab('json', this); });
+  loadFromStorage();
 
   // TC 삭제 버튼 — 이벤트 위임 (동적 생성 요소)
   document.getElementById('tcWrap').addEventListener('click', e => {
@@ -21,12 +22,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const key = btn.getAttribute('data-key');
     if (key) removeTC(key);
   });
-  // 소스 삭제 버튼 — 이벤트 위임
+  // 소스 목록 — 이벤트 위임 (삭제 버튼 / 이름 클릭 미리보기)
   document.getElementById('srcList').addEventListener('click', e => {
-    const btn = e.target.closest('.btn-src-del');
-    if (!btn) return;
-    const idx = parseInt(btn.getAttribute('data-idx'), 10);
-    if (!isNaN(idx)) removeSource(idx);
+    const delBtn = e.target.closest('.btn-src-del');
+    if (delBtn) {
+      const idx = parseInt(delBtn.getAttribute('data-idx'), 10);
+      if (!isNaN(idx)) removeSource(idx);
+      return;
+    }
+    const memo = e.target.closest('.src-memo');
+    if (memo) {
+      const idx = parseInt(memo.getAttribute('data-idx'), 10);
+      if (!isNaN(idx)) previewSource(idx);
+    }
   });
 
   document.getElementById('tcWrap').addEventListener('mouseover', e => {
@@ -47,26 +55,47 @@ let _excludedTcKeys = new Set();
 let _debugLines = [];
 
 /* ════════════════════════════════════════
+   스토리지 저장/불러오기
+════════════════════════════════════════ */
+function saveToStorage() {
+  chrome.storage.local.set({ sources: _sources }, () => {
+    if (chrome.runtime.lastError) log('저장 실패: ' + chrome.runtime.lastError.message, 'err');
+  });
+}
+
+function loadFromStorage() {
+  chrome.storage.local.get(['sources'], result => {
+    if (result.sources && result.sources.length) {
+      _sources = result.sources;
+      renderSrcList();
+      setStatus(`💾 저장된 소스 ${_sources.length}개 불러옴`);
+    }
+  });
+}
+
+/* ════════════════════════════════════════
    소스 목록 관리
 ════════════════════════════════════════ */
 function addSource(memo, raw) {
   _sources.push({ memo: memo || '소스' + (_sources.length + 1), raw });
   renderSrcList();
+  saveToStorage();
 }
 
 function removeSource(idx) {
   _sources.splice(idx, 1);
   renderSrcList();
+  saveToStorage();
 }
 
 function renderSrcList() {
   const el = document.getElementById('srcList');
   if (!_sources.length) { el.innerHTML = ''; return; }
   el.innerHTML = _sources.map((s, i) => `
-    <div class="src-item">
+    <div class="src-item" data-idx="${i}">
       <div class="src-item-header">
         <span class="src-num">${i + 1}</span>
-        <span class="src-memo" title="${escHtml(s.memo)}">${escHtml(s.memo)}</span>
+        <span class="src-memo" data-idx="${i}" title="클릭하여 미리보기 · ${escHtml(s.memo)}">${escHtml(s.memo)}</span>
         <span class="src-status ${s.raw ? 'ok' : 'empty'}">${s.raw ? '수집됨' : '비어있음'}</span>
         <button class="btn-src-del" data-idx="${i}">×</button>
       </div>
@@ -235,6 +264,38 @@ function renderStepCell(steps) {
 }
 
 /* ════════════════════════════════════════
+   소스 단독 분석 → 출력 패널 표시
+════════════════════════════════════════ */
+function previewSource(idx) {
+  const src = _sources[idx];
+  if (!src || !src.raw) return;
+
+  // 선택된 소스 하이라이트
+  document.querySelectorAll('.src-item').forEach(el => el.classList.remove('src-selected'));
+  const item = document.querySelector(`.src-item[data-idx="${idx}"]`);
+  if (item) item.classList.add('src-selected');
+
+  _debugLines = [];
+  _excludedTcKeys = new Set();
+  setStatus('<span class="spinner"></span> 분석 중...');
+
+  setTimeout(() => {
+    try {
+      const parsed = parseSource(src.raw, src.memo);
+      const { allFields, allRelations, allButtons, warnings, screenName } = mergeSources([parsed], log);
+      _allFields    = allFields;
+      _allRelations = allRelations;
+      _allButtons   = allButtons;
+      _screenName   = screenName;
+      renderOutput(warnings);
+      setStatus(`✅ [${escHtml(src.memo)}] — TC ${genTCs(allFields, allRelations, allButtons).length}개`);
+    } catch (e) {
+      setStatus(`❌ 분석 오류: ${e.message}`);
+    }
+  }, 0);
+}
+
+/* ════════════════════════════════════════
    유틸
 ════════════════════════════════════════ */
 function doReset() {
@@ -245,6 +306,7 @@ function doReset() {
   document.getElementById('debugLog').innerHTML = '';
   document.getElementById('debugLog').classList.remove('show');
   setStatus('');
+  chrome.storage.local.remove('sources');
 }
 
 function setStatus(msg) {

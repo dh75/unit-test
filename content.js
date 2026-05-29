@@ -14,7 +14,7 @@
         sendResponse({
           ok: true,
           sources: [{
-            memo: getCurrentRadioLabel() || '현재 상태',
+            memo: getCurrentRadioLabel() || getScreenName(),
             raw: document.documentElement.outerHTML
           }]
         });
@@ -30,6 +30,21 @@
     }
     return true;
   });
+
+  /* ── 화면명 감지 (analyzer.js detectScreenName과 동일 로직) ── */
+  function getScreenName() {
+    const formTitle = document.querySelector('.form-header .title');
+    if (formTitle) {
+      const t = (formTitle.getAttribute('title') || formTitle.textContent).trim();
+      if (t) return t;
+    }
+    const navTitle = document.querySelector('.navBar .history .title');
+    if (navTitle) {
+      const t = navTitle.textContent.trim();
+      if (t) return t;
+    }
+    return document.title || '캡처';
+  }
 
   /* ── 현재 선택된 라디오 레이블 ── */
   function getCurrentRadioLabel() {
